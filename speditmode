@@ -1,0 +1,241 @@
+#!/bin/bash
+# (Do not execute.  Source me.)
+#
+# SPEED EDIT  
+#   The idea is to speed up development of shell scripts or writing by making it quick and easy to open a document no matter
+#     what current directory you are using.  This command may also be useful in windowed desktops that give access to the commandline
+#     such as an Xwindows based desktop. (Unity is an example).  
+#
+# -- currently set up to use vim and wordgrinder
+# -- SPEED EDIT places four useful functions into a bash environment.
+#
+# speditset() sets a my_SPEDITFILE file variable into the environment as the currently edited filename.
+#   This should be the file that is frequently edited with a text editor, such as a script that you are working on sporadically
+#   or a personal journal.  
+#
+# After sourcing the spedit file, type: speditset [ PATH to file ]
+#   For the rest of the session typing 'spedit' <ENTER> will open that file in an editor.
+#
+# In addition unlimited speed dials can be set up by typing: speditset [ Path to file ] [key]
+#   A dictionary of keys with matching file paths is stored in an environment variable.
+#   For the rest of the session typing 'spedit' [key] <ENTER> will open the associated file in a text editor.
+#
+# There are two additional commands: speditwords and wedit
+#   typing 'speditwords' <ENTER>  lists a short summary of all spedit related commands
+#
+#   People who do not use wordgrinder may simply ignore the wedit command.  It converts the text file to wordgrinder format, opens
+#     wordgrinder, and then after a successful save and close converts the resulting wordgrinder file back to text.  It is a little
+#     risky, since if wordgrinder fails the text file may be ruined.
+#
+#   typeing 'wedit' [ key ] <ENTER> opens a text file in word grinder instead of a text editor and handles conversion in the background.
+#     wordgrinder does not use text files.  Currently both the wordgrinder file and the text file will be kept, however only the
+#     text file should be used with the speditset command, and there is no matching weditset command.  Only the text file should be
+#     considered worthy of archiving, either; as wordgrinder may prove unstable compared with a simply text editor.  Backups are
+#     a good idea in case something goes wrong, and sometimes things do go wrong.
+#   
+#
+#  Quick recap of spedit commands:
+# "spedit()" opens the filename held in my_SPEDITFILE with vi or other text editor.
+# "spedit() [speed dial]" opens an speed dialed file for editing. 
+# speditwords() lists commands, reports contents of the speditmode variables.
+# speedlist() [filename] creates a script that can be used to reload the currently stored variables by making calls to speditset.
+# spdex() list only the shortcut names
+# The spedit function is like a speed dial for editing files of interest.  First use the 
+#  speditset command to create a speed dial (such as a number) for a file.  Then use the
+#  spedit command to edit it any time no matter what the current directory is.
+#
+# If speditset is run without an identifier following, then the my_SPEDITFILE holds the file
+#   info, and no parameter is needed for spedit.  Just type spedit.  If it is run with an
+#   identifier following, then the filename is added to the
+#   associative array spedit_array with the identifier as the index.  There is no limit
+#   on the number of files that can be associated as long as they each get a different
+#   alias.
+#
+#   The saved speed dials can be deleted by unsetting the variable spedit_array and the
+#     variable my_SPEDITFILE
+#
+#   Added an extra function called wedit which will call the wordgrinder but use the same
+#     speed dial files.
+function speditwords() {
+  echo "************"
+  echo "speditset() {filename} : marks a file as the active spedit file"
+  echo "speditset() {filename} {identifier} [notation string] : add to array"
+  echo "spnotate()" {identifier} {notation string} : adds or changes notation.
+  echo "spedit() : opens the active spedit file for editing"
+  echo "spedit() {identifier} : looks up the filename and opens it for editing."
+  echo "wedit() : opens active spedit file in wordgrinder"
+  echo "wedit() {identifer} : looks up the filename and opens it in wordgrinder"
+  echo "spwords() : lists spedit commands"
+  echo "speedlist() {identifier} : creates a batch file that will re-create speed dials."
+  echo "speedlist() : puts the same contents on stdout instead of making a file."
+  echo "************"
+}
+
+function speedlist() {
+  if [ -n "$1" ] && touch "$1"; then
+    echo "#!/bin/sh" > "$1"
+    if [ -n "$my_SPEDITFILE" ]; then
+      echo "speditset \"$my_SPEDITFILE\"" >> "$1"
+    fi
+    if [ "${#spedit_array[@]}" -ge "1" ]; then
+      for i in ${!spedit_array[@]}; do
+        echo -n "speditset \"${spedit_array[$i]}\" \"$i\"" >> "$1"
+        #bit for notations
+        if [ -n "${spedit_notations[$i]}" ]; then
+          echo " \"${spedit_notations[$i]}\"" >> "$1"
+        else #adds line return in case of no notation
+          echo >> "$1"
+        fi
+      done
+    fi 
+    chmod u+x "$1"
+    return 0
+  else
+    if [ -n "$my_SPEDITFILE" ]; then
+      echo "speditset \"$my_SPEDITFILE\"" 
+    fi
+    if [ "${#spedit_array[@]}" -ge "1" ]; then
+      for i in ${!spedit_array[@]}; do
+        echo -n "speditset \"${spedit_array[$i]}\" \"$i\"" 
+        #bit for notations
+        if [ -n "${spedit_notations[$i]}" ]; then
+          echo " \"${spedit_notations[$i]}\""
+        else #adds line return in case of no notation
+          echo 
+        fi
+      done
+    fi 
+    return 1
+  fi
+}
+declare -Ax spedit_array
+export spedit_array
+declare -Ax spedit_notations
+export spedit_notations
+
+function spdex() {
+  for i in ${!spedit_array[@]}; do
+        echo -n ":$i: " 
+      done
+  echo
+}
+
+function speditset() {
+  if [ "$2" = "" ]; then
+    if [ -n "$1" ] && [ -f "$1" ]; then
+      export my_SPEDITFILE=$(realpath "${1}")
+    else
+      echo "Could not access a file called \"$1\""
+      echo "unsetting the my_SPEDITFILE variable."
+      unset my_SPEDITFILE
+      return 1
+    fi
+  else 
+    if [ -n "$1" ] && [ -f "$1" ]; then
+      spedit_array[${2}]=$(realpath "${1}")
+      #adding support for notations
+      if [ -n "$3" ] ; then
+        spedit_notations[${2}]="${3}"
+      fi
+    else
+      echo "Could not access a file called \"$1\""
+      return 1
+    fi
+  fi
+}
+function spnotate() {
+  if [ -n "$1" ] && [ -n "${spedit_array[$1]}" ]; then
+    spedit_notations[${1}]="${2}"
+    return 0
+  else
+    echo "There is no such identifier \"$1\" in the array."
+    return 1
+  fi
+}
+function spedit() {
+  if [ ! -n "$1" ]; then
+    if [ -n "$my_SPEDITFILE" ] && [ -f "$my_SPEDITFILE" ]; then
+      vi "${my_SPEDITFILE}" 
+    else
+      echo "Either no my_SPEDITFILE var has been set or could not access the file called \"$1\""
+    fi
+  else
+    if [ -n "${1}" ] && [ -f "${spedit_array["${1}"]}" ]; then
+      vi "${spedit_array["${1}"]}"  
+    else
+      echo "Either the file could not be accessed or the parameter was not found in spedit_array"
+    fi
+  fi
+}
+ 
+function wedit() {
+  if [ -z "$1" ]; then 
+    if [ -n "$my_SPEDITFILE" ] && [ -f "$my_SPEDITFILE" ]; then 
+      if [ ! "${my_SPEDITFILE%txt}" = "${my_SPEDITFILE}" ]; then
+        my_FPATH="$(realpath ${my_SPEDITFILE})"
+        my_FNAME="$(basename ${my_FPATH})"
+        my_FDIR="${my_FPATH%${my_FNAME}}"
+        my_FDIR="${my_FDIR%/}/"
+        #Backup and erase wg file if it exists.
+        if [ -f "${my_FDIR}${my_FNAME}.wg" ]; then
+          cp "${my_FDIR}${my_FNAME}.wg" "${my_FDIR}${my_FNAME}.wg.backup" &&
+          rm "${my_FDIR}${my_FNAME}.wg"
+        fi
+        /home/dan/usr/bin/wordgrinder -c "${my_SPEDITFILE}" "${my_FDIR}${my_FNAME}.wg" &&  /home/dan/usr/bin/wordgrinder "${my_FDIR}${my_FNAME}.wg"
+        #assuming the word processor edited and saved the file it is time
+        # to backup the original text file and then convert the wg file to text.
+        # the speed edit functions still refer to the text file, and we're
+        # using wordgrinder as a text editor.  Best to keep the file as text.
+        if [ "$?" -eq "0" ]; then
+          cp "${my_SPEDITFILE}" "${my_SPEDITFILE}.backup" &&
+          rm -f "{my_SPEDITFILE}" &&
+          /home/dan/usr/bin/wordgrinder -c "${my_FDIR}${my_FNAME}.wg" "${my_SPEDITFILE}" 
+        else
+          echo "Either wordgrinder terminated unexpectedly or there was \
+                  a problem somewhere in the conversion and backup\
+                  in the speditmode bash script."
+        fi
+
+      else #Case where there's no $1 var and the spedit file ext isn't txt.
+        /home/dan/usr/bin/wordgrinder "${my_SPEDITFILE}" 
+      fi
+    else #Case where the user provided no $1 but there's no my_SPEDITFILE value
+      echo "Either no my_SPEDITFILE var has been set or could not access the file called \"$1\""
+    fi
+  else #User has entered a value for $1.
+    if [ -n "${1}" ] && [ -f "${spedit_array["${1}"]}" ]; then
+      spedit_filename="${spedit_array["${1}"]}"
+      if [ ! "${spedit_filename%txt}" = "${spedit_filename}" ]; then
+        my_FPATH="$(realpath ${spedit_filename})"
+        my_FNAME="$(basename ${my_FPATH})"
+        my_FDIR="${my_FPATH%${my_FNAME}}"
+        my_FDIR="${my_FDIR%/}/"
+        #Backup and erase wg file if it exists.
+        if [ -f "${my_FDIR}${my_FNAME}.wg" ]; then
+          cp "${my_FDIR}${my_FNAME}.wg" "${my_FDIR}${my_FNAME}.wg.backup" &&
+          rm "${my_FDIR}${my_FNAME}.wg"
+        fi
+        #convert text file to wordgrinder format, and open it in wordgrinder
+        /home/dan/usr/bin/wordgrinder -c "${spedit_filename}" "${my_FDIR}${my_FNAME}.wg" &&  /home/dan/usr/bin/wordgrinder "${my_FDIR}${my_FNAME}.wg"
+        #assuming the word processor edited and saved the file it is time
+        # to backup the original text file and then convert the wg file to text.
+        # the speed edit functions still refer to the text file, and we're
+        # using wordgrinder as a text editor.  Best to keep the file as text.
+        if [ "$?" -eq "0" ]; then
+          cp "${spedit_filename}" "${spedit_filename}.backup" &&
+          rm -f "{spedit_filename}" &&
+          /home/dan/usr/bin/wordgrinder -c "${my_FDIR}${my_FNAME}.wg" "${spedit_filename}" 
+        else
+          echo "Either wordgrinder terminated unexpectedly or there was \
+                  a problem somewhere in the conversion and backup\
+                  in the speditmode bash script."
+        fi
+      else #Case where wedit has an array value ending in wg
+      /home/dan/usr/bin/wordgrinder "${spedit_array["${1}"]}"  
+      fi
+    else
+      echo "Either the file could not be accessed or the parameter was not found in spedit_array"
+    fi
+  fi
+}
+ 
