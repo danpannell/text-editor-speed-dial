@@ -1,0 +1,32 @@
+# Here are some ideas for improvement and new features:
+#
+# Simplify by using components already present on the system: possibly alias and commandline completion.
+#
+# Better documentation.
+#
+# Automatically backup the speed list to keep it persistent.
+#
+# Harden the scripting, replace the sourcing, detect problem input, so that its a lower security risk.
+#
+# Create a FIFO style queque (like an email queue) that lists files of interest to either view or edit later.
+#
+# Add support for multiple speed lists, making it possible to have themes.
+#
+# add more functions to apply to the current file 
+#
+# Interactive configuration scripts, so that most configuration does not need to be done in files.
+#
+# Configurations for more editors or word processors and support for more kinds of media and tasks: arbitrary tasks.
+#
+# Integration with Chroot jails or systemd jails, so if they are needed they start right up.
+#
+# Create a hook for common gui systems to select files of interest and add them to the list or display it.
+#
+# Create support for emacs integration
+#
+# Function for vim to add a file to a speedlist or to a fifo queue.
+#
+# Make it work across networks, sockets and other bus types.
+#
+# Better Wordgrinder support
+
